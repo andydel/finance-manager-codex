@@ -4,8 +4,8 @@ data class SummarySnapshot(
     val currentBalance: Double,
     val savingsBalance: Double,
     val debtBalance: Double,
-    val totalInvestments: Double,
+    val totalAssets: Double,
     val totalDebt: Double
 ) {
-    val netWorth: Double get() = totalInvestments - totalDebt
+    val netWorth: Double get() = totalAssets - totalDebt
 }

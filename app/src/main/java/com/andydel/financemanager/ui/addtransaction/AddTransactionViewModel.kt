@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andydel.financemanager.data.repository.FinanceRepository
 import com.andydel.financemanager.domain.model.TransactionType
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -52,6 +55,10 @@ class AddTransactionViewModel(
         _uiState.value = _uiState.value.copy(amount = amount)
     }
 
+    fun onDescriptionChanged(description: String) {
+        _uiState.value = _uiState.value.copy(description = description)
+    }
+
     fun onAccountSelected(accountId: Long) {
         _uiState.value = _uiState.value.copy(selectedAccountId = accountId)
     }
@@ -62,6 +69,10 @@ class AddTransactionViewModel(
 
     fun onTransactionTypeChange(type: TransactionType) {
         _uiState.value = _uiState.value.copy(transactionType = type)
+    }
+
+    fun onTransactionDateSelected(instant: Instant) {
+        _uiState.value = _uiState.value.copy(transactionInstant = instant)
     }
 
     fun saveTransaction() {
@@ -75,10 +86,18 @@ class AddTransactionViewModel(
                 repository.addTransaction(
                     accountId = state.selectedAccountId ?: return@launch,
                     categoryId = state.selectedCategoryId ?: return@launch,
+                    description = state.description.trim(),
                     amount = amountValue,
-                    type = state.transactionType
+                    type = state.transactionType,
+                    timestamp = state.transactionInstant
                 )
-                _uiState.value = _uiState.value.copy(isSaving = false, saved = true, amount = "")
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    saved = true,
+                    amount = "",
+                    description = "",
+                    transactionInstant = ZonedDateTime.now(ZoneOffset.UTC).toInstant()
+                )
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
