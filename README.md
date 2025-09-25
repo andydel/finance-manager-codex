@@ -23,6 +23,10 @@ Finance Manager is an Android application built with Jetpack Compose and Room th
 2. Clone the repository and open it in Android Studio.
 3. Allow the IDE to sync Gradle; then use `./gradlew assembleDebug` or the Run configuration to build/install.
 
+## Contributing
+
+Review `AGENTS.md` for repository guidelines covering project structure, build commands, coding style, and pull request expectations before opening a change.
+
 ## Project Structure
 
 ```
