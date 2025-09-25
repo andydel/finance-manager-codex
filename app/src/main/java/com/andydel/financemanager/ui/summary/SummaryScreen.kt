@@ -47,7 +47,7 @@ private fun SummaryContent(state: SummaryUiState.Success) {
         SummaryCard(title = "Current accounts", amount = snapshot.currentBalance)
         SummaryCard(title = "Savings & Investments", amount = snapshot.savingsBalance)
         SummaryCard(title = "Debt", amount = snapshot.debtBalance)
-        SummaryCard(title = "Total investments", amount = snapshot.totalInvestments)
+        SummaryCard(title = "Total assets", amount = snapshot.totalAssets)
         SummaryCard(title = "Total debt", amount = snapshot.totalDebt)
         SummaryCard(title = "Net worth", amount = snapshot.netWorth, emphasise = true)
     }

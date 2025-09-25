@@ -1,5 +1,6 @@
 package com.andydel.financemanager.ui.home
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.andydel.financemanager.domain.model.Account
@@ -37,7 +39,8 @@ private data class TabDefinition(val type: AccountType, val title: String)
 @Composable
 fun HomeScreen(
     state: HomeUiState,
-    onAddTransaction: (Long?) -> Unit
+    onAddTransaction: (Long?) -> Unit,
+    onOpenAccount: (Long) -> Unit
 ) {
     val tabs = remember {
         listOf(
@@ -92,7 +95,8 @@ fun HomeScreen(
                 } else {
                     AccountList(
                         accounts = accountsForTab,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        onAccountOpen = onOpenAccount
                     )
                 }
             }
@@ -117,22 +121,30 @@ fun HomeScreen(
 }
 
 @Composable
-private fun AccountList(accounts: List<Account>, modifier: Modifier = Modifier) {
+private fun AccountList(
+    accounts: List<Account>,
+    modifier: Modifier = Modifier,
+    onAccountOpen: (Long) -> Unit
+) {
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
     ) {
         items(accounts, key = Account::id) { account ->
-            AccountCard(account = account)
+            AccountCard(account = account, onDoubleClick = { onAccountOpen(account.id) })
         }
     }
 }
 
 @Composable
-private fun AccountCard(account: Account) {
+private fun AccountCard(account: Account, onDoubleClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = { onDoubleClick() })
+            },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

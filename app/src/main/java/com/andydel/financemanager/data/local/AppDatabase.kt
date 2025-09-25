@@ -22,7 +22,7 @@ import com.andydel.financemanager.data.local.entities.UserEntity
         UserEntity::class,
         CurrencyEntity::class
     ],
-    version = 1
+    version = 2
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

@@ -28,6 +28,7 @@ fun TransactionEntity.toDomain(): FinanceTransaction = FinanceTransaction(
     id = id,
     accountId = accountId,
     categoryId = categoryId,
+    description = description,
     amount = amount,
     type = if (isIncome) TransactionType.INCOME else TransactionType.EXPENSE,
     timestamp = date

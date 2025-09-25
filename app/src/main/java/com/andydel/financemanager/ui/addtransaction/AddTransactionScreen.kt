@@ -12,6 +12,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +24,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,18 +35,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.andydel.financemanager.domain.model.TransactionType
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
     state: AddTransactionUiState,
     onAmountChanged: (String) -> Unit,
+    onDescriptionChanged: (String) -> Unit,
     onAccountSelected: (Long) -> Unit,
     onCategorySelected: (Long) -> Unit,
     onTransactionTypeChange: (TransactionType) -> Unit,
+    onTransactionDateSelected: (Instant) -> Unit,
     onSave: () -> Unit,
     onClose: () -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val displayDate = remember(state.transactionInstant) {
+        val date = state.transactionInstant.atZone(ZoneOffset.UTC).toLocalDate()
+        DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault()).format(date)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,6 +73,13 @@ fun AddTransactionScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Amount") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+
+        OutlinedTextField(
+            value = state.description,
+            onValueChange = onDescriptionChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Description") }
         )
 
         val accounts = state.accounts
@@ -72,6 +96,12 @@ fun AddTransactionScreen(
             currentValue = categories.firstOrNull { it.id == state.selectedCategoryId }?.name ?: "Select category",
             options = categories.map { it.name },
             onOptionSelected = { index -> categories.getOrNull(index)?.let { onCategorySelected(it.id) } }
+        )
+
+        DateSelector(
+            label = "Date",
+            displayValue = displayDate,
+            onClick = { showDatePicker = true }
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,6 +128,66 @@ fun AddTransactionScreen(
 
         TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
             Text(text = "Cancel")
+        }
+    }
+
+    if (showDatePicker) {
+        val initialMillis = remember(state.transactionInstant) {
+            val utcDate = state.transactionInstant.atZone(ZoneOffset.UTC).toLocalDate()
+            utcDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialMillis,
+            initialDisplayedMonthMillis = initialMillis,
+            yearRange = DatePickerDefaults.YearRange
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selected = datePickerState.selectedDateMillis
+                        if (selected != null) {
+                            val localDate = Instant.ofEpochMilli(selected)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            val utcInstant = localDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+                            onTransactionDateSelected(utcInstant)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+@Composable
+private fun DateSelector(
+    label: String,
+    displayValue: String,
+    onClick: () -> Unit
+) {
+    Column {
+        Text(text = label)
+        OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = displayValue)
+                Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = null)
+            }
         }
     }
 }

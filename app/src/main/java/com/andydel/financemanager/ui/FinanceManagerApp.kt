@@ -17,6 +17,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.andydel.financemanager.data.repository.FinanceRepository
 import com.andydel.financemanager.ui.addaccount.AddAccountScreen
+import com.andydel.financemanager.ui.accountdetail.AccountDetailScreen
+import com.andydel.financemanager.ui.accountdetail.AccountDetailViewModel
 import com.andydel.financemanager.ui.addtransaction.AddTransactionScreen
 import com.andydel.financemanager.ui.addtransaction.AddTransactionViewModel
 import com.andydel.financemanager.ui.components.FinanceTopBar
@@ -41,6 +43,7 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     "addTransaction" -> "Add Transaction"
                     FinanceDestination.Summary.route -> "Summary"
                     FinanceDestination.Settings.route -> "Settings"
+                    FinanceDestination.AccountDetail.route -> "Account Details"
                     else -> "Finance Manager"
                 },
                 onAddAccount = { navController.navigate(FinanceDestination.AddAccount.route) },
@@ -62,6 +65,9 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     state = state,
                     onAddTransaction = { accountId ->
                         navController.navigate(FinanceDestination.addTransactionRoute(accountId))
+                    },
+                    onOpenAccount = { accountId ->
+                        navController.navigate(FinanceDestination.accountDetailRoute(accountId))
                     }
                 )
             }
@@ -105,9 +111,11 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                 AddTransactionScreen(
                     state = state,
                     onAmountChanged = viewModel::onAmountChanged,
+                    onDescriptionChanged = viewModel::onDescriptionChanged,
                     onAccountSelected = viewModel::onAccountSelected,
                     onCategorySelected = viewModel::onCategorySelected,
                     onTransactionTypeChange = viewModel::onTransactionTypeChange,
+                    onTransactionDateSelected = viewModel::onTransactionDateSelected,
                     onSave = { viewModel.saveTransaction() },
                     onClose = { navController.popBackStack() }
                 )
@@ -117,6 +125,30 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                         navController.popBackStack()
                     }
                 }
+            }
+            composable(
+                route = FinanceDestination.AccountDetail.route,
+                arguments = listOf(
+                    navArgument(FinanceDestination.ACCOUNT_DETAIL_ACCOUNT_ID_KEY) {
+                        type = NavType.LongType
+                    }
+                )
+            ) { entry ->
+                val accountId = entry.arguments?.getLong(FinanceDestination.ACCOUNT_DETAIL_ACCOUNT_ID_KEY)
+                if (accountId == null) {
+                    return@composable
+                }
+
+                val viewModel: AccountDetailViewModel = viewModel(
+                    factory = AccountDetailViewModel.provideFactory(repository, accountId)
+                )
+                val state by viewModel.uiState.collectAsState()
+
+                AccountDetailScreen(
+                    state = state,
+                    onSearchQueryChange = viewModel::onSearchQueryChange,
+                    onClearSearch = viewModel::clearSearch
+                )
             }
             composable(FinanceDestination.Summary.route) {
                 val viewModel: com.andydel.financemanager.ui.summary.SummaryViewModel = viewModel(factory = factory)

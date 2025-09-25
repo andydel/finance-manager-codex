@@ -63,7 +63,7 @@ class FinanceRepository(
             currentBalance = current,
             savingsBalance = savings,
             debtBalance = debt,
-            totalInvestments = current + savings,
+            totalAssets = current + savings,
             totalDebt = debt
         )
     }
@@ -109,6 +109,7 @@ class FinanceRepository(
     suspend fun addTransaction(
         accountId: Long,
         categoryId: Long,
+        description: String,
         amount: Double,
         type: TransactionType,
         timestamp: Instant = Instant.now()
@@ -116,6 +117,7 @@ class FinanceRepository(
         val entity = TransactionEntity(
             amount = amount,
             date = timestamp,
+            description = description,
             categoryId = categoryId,
             accountId = accountId,
             isIncome = type == TransactionType.INCOME
