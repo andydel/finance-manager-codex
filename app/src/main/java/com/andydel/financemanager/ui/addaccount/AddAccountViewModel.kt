@@ -58,6 +58,36 @@ class AddAccountViewModel(
         _uiState.value = _uiState.value.copy(selectedCurrencyId = currencyId)
     }
 
+    fun loadAccountForEdit(accountId: Long?) {
+        if (accountId == null || accountId <= 0L || _uiState.value.editingAccountId == accountId) {
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            mode = AccountFormMode.EDIT,
+            editingAccountId = accountId,
+            errorMessage = null
+        )
+        viewModelScope.launch {
+            val account = repository.getAccount(accountId)
+            if (account != null) {
+                _uiState.value = _uiState.value.copy(
+                    name = account.name,
+                    initialBalance = account.initialBalance.toString(),
+                    selectedType = account.type,
+                    selectedCurrencyId = account.currency.id,
+                    isLoading = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Account not found",
+                    isLoading = false
+                )
+            }
+        }
+    }
+
     fun saveAccount(defaultUserId: Long? = null) {
         val state = _uiState.value
         if (!state.canSave || state.isSaving) return
@@ -66,15 +96,25 @@ class AddAccountViewModel(
         viewModelScope.launch {
             try {
                 _uiState.value = state.copy(isSaving = true, errorMessage = null)
-                repository.addAccount(
-                    name = state.name.trim(),
-                    type = state.selectedType,
-                    currencyId = state.selectedCurrencyId ?: return@launch,
-                    initialBalance = balanceValue,
-                    icon = null,
-                    colour = null,
-                    userId = defaultUserId
-                )
+                if (state.mode == AccountFormMode.EDIT && state.editingAccountId != null) {
+                    repository.updateAccount(
+                        accountId = state.editingAccountId,
+                        name = state.name.trim(),
+                        type = state.selectedType,
+                        currencyId = state.selectedCurrencyId ?: return@launch,
+                        initialBalance = balanceValue
+                    )
+                } else {
+                    repository.addAccount(
+                        name = state.name.trim(),
+                        type = state.selectedType,
+                        currencyId = state.selectedCurrencyId ?: return@launch,
+                        initialBalance = balanceValue,
+                        icon = null,
+                        colour = null,
+                        userId = defaultUserId
+                    )
+                }
                 _uiState.value = _uiState.value.copy(isSaving = false, saved = true)
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(
