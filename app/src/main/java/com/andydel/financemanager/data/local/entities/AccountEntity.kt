@@ -13,5 +13,6 @@ data class AccountEntity(
     @ColumnInfo(name = "colour") val colour: String?,
     @ColumnInfo(name = "currency") val currencyId: Long,
     @ColumnInfo(name = "initial_balance") val initialBalance: Double,
-    @ColumnInfo(name = "user_id") val userId: Long?
+    @ColumnInfo(name = "user_id") val userId: Long?,
+    @ColumnInfo(name = "position") val position: Int
 )

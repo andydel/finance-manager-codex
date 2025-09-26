@@ -49,7 +49,8 @@ fun AccountEntity.toDomain(
         initialBalance = initialBalance,
         currentBalance = initialBalance + netChange,
         icon = icon,
-        color = colour
+        color = colour,
+        sortOrder = position
     )
 }
 

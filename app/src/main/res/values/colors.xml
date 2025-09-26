@@ -7,4 +7,5 @@
     <color name="md_theme_dark_onPrimary">#00382F</color>
     <color name="md_theme_dark_primaryContainer">#005145</color>
     <color name="md_theme_dark_onPrimaryContainer">#71FADC</color>
+    <color name="ic_launcher_background">#042825</color>
 </resources>
