@@ -43,7 +43,7 @@ class FinanceRepository(
                 currency = currencyEntity.toDomain(),
                 transactions = accountWithTransactions.transactions
             )
-        }
+        }.sortedBy(Account::sortOrder)
     }
 
     fun observeAccounts(type: AccountType): Flow<List<Account>> = observeAccounts().map { list ->
@@ -94,6 +94,7 @@ class FinanceRepository(
         colour: String?,
         userId: Long?
     ): Long {
+        val maxPosition = accountDao.getMaxPositionForType(type.name)
         val entity = AccountEntity(
             name = name,
             type = type.name,
@@ -101,7 +102,8 @@ class FinanceRepository(
             initialBalance = initialBalance,
             icon = icon,
             colour = colour,
-            userId = userId
+            userId = userId,
+            position = maxPosition + 1
         )
         return accountDao.insert(entity)
     }
@@ -121,6 +123,20 @@ class FinanceRepository(
             initialBalance = initialBalance
         )
         accountDao.insert(updated)
+    }
+
+    suspend fun reorderAccounts(
+        @Suppress("UNUSED_PARAMETER") type: AccountType,
+        orderedIds: List<Long>
+    ) {
+        orderedIds.forEachIndexed { index, accountId ->
+            accountDao.updatePosition(accountId = accountId, position = index)
+        }
+    }
+
+    suspend fun deleteAccount(accountId: Long) {
+        transactionDao.deleteForAccount(accountId)
+        accountDao.delete(accountId)
     }
 
     suspend fun getAccount(accountId: Long): Account? {

@@ -7,6 +7,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -23,6 +26,7 @@ import com.andydel.financemanager.ui.addtransaction.AddTransactionScreen
 import com.andydel.financemanager.ui.addtransaction.AddTransactionViewModel
 import com.andydel.financemanager.ui.components.FinanceTopBar
 import com.andydel.financemanager.ui.home.HomeScreen
+import com.andydel.financemanager.ui.home.AccountManagementChange
 import com.andydel.financemanager.ui.navigation.FinanceDestination
 import com.andydel.financemanager.ui.settings.SettingsScreen
 import com.andydel.financemanager.ui.summary.SummaryScreen
@@ -35,12 +39,23 @@ fun FinanceManagerApp(repository: FinanceRepository) {
     val destinationRoute = backStackEntry?.destination?.route
     val currentRoute = destinationRoute?.substringBefore("?") ?: FinanceDestination.Home.route
     val addAccountArgument = backStackEntry?.arguments?.getLong(FinanceDestination.ACCOUNT_FORM_ACCOUNT_ID_KEY)?.takeIf { it > 0 }
+    var isManagingAccounts by rememberSaveable { mutableStateOf(false) }
+    var manageDoneAction by remember { mutableStateOf<() -> Unit>({}) }
+    var manageCancelAction by remember { mutableStateOf<() -> Unit>({}) }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != FinanceDestination.Home.route && isManagingAccounts) {
+            isManagingAccounts = false
+            manageDoneAction = {}
+            manageCancelAction = {}
+        }
+    }
 
     Scaffold(
         topBar = {
             FinanceTopBar(
                 title = when (currentRoute) {
-                    FinanceDestination.Home.route -> "Finance Manager"
+                    FinanceDestination.Home.route -> if (isManagingAccounts) "Manage Accounts" else "Finance Manager"
                     FinanceDestination.AddAccount.route.substringBefore("?") ->
                         if (addAccountArgument != null) "Edit Account" else "Add Account"
                     "addTransaction" -> "Add Transaction"
@@ -57,7 +72,14 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                 },
                 onAddAccount = { navController.navigate(FinanceDestination.addAccountRoute()) },
                 onShowSummary = { navController.navigate(FinanceDestination.Summary.route) },
-                onShowSettings = { navController.navigate(FinanceDestination.Settings.route) }
+                onShowSettings = { navController.navigate(FinanceDestination.Settings.route) },
+                showManageAccounts = currentRoute == FinanceDestination.Home.route && !isManagingAccounts,
+                isManagingAccounts = isManagingAccounts,
+                onManageAccounts = {
+                    isManagingAccounts = true
+                },
+                onDoneManaging = if (isManagingAccounts) manageDoneAction else null,
+                onCancelManaging = if (isManagingAccounts) manageCancelAction else null
             )
         }
     ) { padding ->
@@ -80,6 +102,13 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     },
                     onEditAccount = { accountId ->
                         navController.navigate(FinanceDestination.addAccountRoute(accountId))
+                    },
+                    isManaging = isManagingAccounts,
+                    onExitManage = { isManagingAccounts = false },
+                    onApplyAccountChanges = { change -> viewModel.applyAccountManagement(change) },
+                    registerManageActions = { done, cancel ->
+                        manageDoneAction = done
+                        manageCancelAction = cancel
                     }
                 )
             }
