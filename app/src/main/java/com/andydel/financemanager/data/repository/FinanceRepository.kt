@@ -20,8 +20,8 @@ import com.andydel.financemanager.domain.model.TransactionType
 import com.andydel.financemanager.domain.model.UserProfile
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class FinanceRepository(
@@ -104,6 +104,28 @@ class FinanceRepository(
             userId = userId
         )
         return accountDao.insert(entity)
+    }
+
+    suspend fun updateAccount(
+        accountId: Long,
+        name: String,
+        type: AccountType,
+        currencyId: Long,
+        initialBalance: Double
+    ) {
+        val existing = accountDao.getById(accountId) ?: return
+        val updated = existing.copy(
+            name = name,
+            type = type.name,
+            currencyId = currencyId,
+            initialBalance = initialBalance
+        )
+        accountDao.insert(updated)
+    }
+
+    suspend fun getAccount(accountId: Long): Account? {
+        val accounts = observeAccounts().first()
+        return accounts.firstOrNull { it.id == accountId }
     }
 
     suspend fun addTransaction(

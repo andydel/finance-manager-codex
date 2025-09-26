@@ -1,6 +1,7 @@
 package com.andydel.financemanager.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 @Composable
 fun FinanceTopBar(
     title: String,
+    onNavigateHome: () -> Unit,
     onAddAccount: () -> Unit,
     onShowSummary: () -> Unit,
     onShowSettings: () -> Unit
@@ -26,6 +28,11 @@ fun FinanceTopBar(
     var expanded by remember { mutableStateOf(false) }
     TopAppBar(
         title = { Text(text = title) },
+        navigationIcon = {
+            IconButton(onClick = onNavigateHome) {
+                Icon(imageVector = Icons.Default.Home, contentDescription = "Go home")
+            }
+        },
         actions = {
             IconButton(onClick = { expanded = true }) {
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")

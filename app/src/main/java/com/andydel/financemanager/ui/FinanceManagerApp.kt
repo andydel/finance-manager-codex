@@ -32,21 +32,30 @@ fun FinanceManagerApp(repository: FinanceRepository) {
     val navController = rememberNavController()
     val factory = remember(repository) { FinanceViewModelFactory(repository) }
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route?.substringBefore("?") ?: FinanceDestination.Home.route
+    val destinationRoute = backStackEntry?.destination?.route
+    val currentRoute = destinationRoute?.substringBefore("?") ?: FinanceDestination.Home.route
+    val addAccountArgument = backStackEntry?.arguments?.getLong(FinanceDestination.ACCOUNT_FORM_ACCOUNT_ID_KEY)?.takeIf { it > 0 }
 
     Scaffold(
         topBar = {
             FinanceTopBar(
                 title = when (currentRoute) {
                     FinanceDestination.Home.route -> "Finance Manager"
-                    FinanceDestination.AddAccount.route -> "Add Account"
+                    FinanceDestination.AddAccount.route.substringBefore("?") ->
+                        if (addAccountArgument != null) "Edit Account" else "Add Account"
                     "addTransaction" -> "Add Transaction"
                     FinanceDestination.Summary.route -> "Summary"
                     FinanceDestination.Settings.route -> "Settings"
                     FinanceDestination.AccountDetail.route -> "Account Details"
                     else -> "Finance Manager"
                 },
-                onAddAccount = { navController.navigate(FinanceDestination.AddAccount.route) },
+                onNavigateHome = {
+                    navController.navigate(FinanceDestination.Home.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onAddAccount = { navController.navigate(FinanceDestination.addAccountRoute()) },
                 onShowSummary = { navController.navigate(FinanceDestination.Summary.route) },
                 onShowSettings = { navController.navigate(FinanceDestination.Settings.route) }
             )
@@ -68,12 +77,28 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     },
                     onOpenAccount = { accountId ->
                         navController.navigate(FinanceDestination.accountDetailRoute(accountId))
+                    },
+                    onEditAccount = { accountId ->
+                        navController.navigate(FinanceDestination.addAccountRoute(accountId))
                     }
                 )
             }
-            composable(FinanceDestination.AddAccount.route) {
+            composable(
+                route = FinanceDestination.AddAccount.route,
+                arguments = listOf(
+                    navArgument(FinanceDestination.ACCOUNT_FORM_ACCOUNT_ID_KEY) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) { entry ->
                 val viewModel: com.andydel.financemanager.ui.addaccount.AddAccountViewModel = viewModel(factory = factory)
                 val state by viewModel.uiState.collectAsState()
+                val editingAccountId = entry.arguments?.getLong(FinanceDestination.ACCOUNT_FORM_ACCOUNT_ID_KEY)?.takeIf { it > 0 }
+
+                LaunchedEffect(editingAccountId) {
+                    viewModel.loadAccountForEdit(editingAccountId)
+                }
 
                 AddAccountScreen(
                     state = state,

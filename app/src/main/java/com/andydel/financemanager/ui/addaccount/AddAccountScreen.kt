@@ -1,6 +1,7 @@
 package com.andydel.financemanager.ui.addaccount
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,13 +44,32 @@ fun AddAccountScreen(
     onSave: () -> Unit,
     onClose: () -> Unit
 ) {
+    if (state.isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val titleLabel = if (state.mode == AccountFormMode.EDIT) "Edit account" else "Account details"
+    val actionLabel = when {
+        state.isSaving -> "Saving..."
+        state.mode == AccountFormMode.EDIT -> "Update"
+        else -> "Save"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(text = "Account details")
+        Text(text = titleLabel)
         OutlinedTextField(
             value = state.name,
             onValueChange = onNameChanged,
@@ -90,7 +111,7 @@ fun AddAccountScreen(
             enabled = state.canSave && !state.isSaving,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = if (state.isSaving) "Saving..." else "Save")
+            Text(text = actionLabel)
         }
 
         TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {

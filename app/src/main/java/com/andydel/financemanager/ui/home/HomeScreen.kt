@@ -1,6 +1,7 @@
 package com.andydel.financemanager.ui.home
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,7 +29,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.andydel.financemanager.domain.model.Account
@@ -40,7 +40,8 @@ private data class TabDefinition(val type: AccountType, val title: String)
 fun HomeScreen(
     state: HomeUiState,
     onAddTransaction: (Long?) -> Unit,
-    onOpenAccount: (Long) -> Unit
+    onOpenAccount: (Long) -> Unit,
+    onEditAccount: (Long) -> Unit
 ) {
     val tabs = remember {
         listOf(
@@ -96,7 +97,8 @@ fun HomeScreen(
                     AccountList(
                         accounts = accountsForTab,
                         modifier = Modifier.fillMaxSize(),
-                        onAccountOpen = onOpenAccount
+                        onAccountOpen = onOpenAccount,
+                        onAccountEdit = onEditAccount
                     )
                 }
             }
@@ -124,7 +126,8 @@ fun HomeScreen(
 private fun AccountList(
     accounts: List<Account>,
     modifier: Modifier = Modifier,
-    onAccountOpen: (Long) -> Unit
+    onAccountOpen: (Long) -> Unit,
+    onAccountEdit: (Long) -> Unit
 ) {
     LazyColumn(
         modifier = modifier,
@@ -132,19 +135,25 @@ private fun AccountList(
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
     ) {
         items(accounts, key = Account::id) { account ->
-            AccountCard(account = account, onDoubleClick = { onAccountOpen(account.id) })
+            AccountCard(
+                account = account,
+                onOpen = { onAccountOpen(account.id) },
+                onEdit = { onAccountEdit(account.id) }
+            )
         }
     }
 }
 
 @Composable
-private fun AccountCard(account: Account, onDoubleClick: () -> Unit) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun AccountCard(account: Account, onOpen: () -> Unit, onEdit: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = { onDoubleClick() })
-            },
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = onEdit
+            ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
