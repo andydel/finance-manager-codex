@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.andydel.financemanager.domain.model.Account
@@ -325,6 +326,7 @@ private fun AccountDisplayCard(
     onOpen: () -> Unit,
     onEdit: () -> Unit
 ) {
+    val containerColor = accountCardContainerColor(account)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -332,9 +334,12 @@ private fun AccountDisplayCard(
                 onClick = onOpen,
                 onLongClick = onEdit
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
-        AccountCardContent(account = account)
+        AccountCardContent(
+            account = account,
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
 
@@ -347,9 +352,10 @@ private fun AccountManageRow(
     onMoveDown: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val containerColor = accountCardContainerColor(account)
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             AccountCardContent(account = account)
@@ -375,18 +381,27 @@ private fun AccountManageRow(
 }
 
 @Composable
-private fun AccountCardContent(account: Account) {
-    Column {
+private fun AccountCardContent(
+    account: Account,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
         Text(text = account.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(
             text = "${account.currency.symbol}${"%,.2f".format(account.currentBalance)}",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
         )
-        Text(
-            text = "Initial balance: ${account.currency.symbol}${"%,.2f".format(account.initialBalance)}",
-            style = MaterialTheme.typography.bodySmall
-        )
+    }
+}
+
+@Composable
+private fun accountCardContainerColor(account: Account): Color {
+    val scheme = MaterialTheme.colorScheme
+    return when {
+        account.type == AccountType.CURRENT && account.currentBalance < 0 -> Color(0xFFF6DDDF)
+        account.type == AccountType.CURRENT -> Color(0xFFE3F5E8)
+        else -> scheme.surfaceVariant
     }
 }
 
