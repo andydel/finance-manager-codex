@@ -123,7 +123,12 @@ fun AddTransactionScreen(
             enabled = state.canSave && !state.isSaving,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = if (state.isSaving) "Saving..." else "Save")
+            val buttonLabel = when {
+                state.isSaving -> "Saving..."
+                state.isEditing -> "Update"
+                else -> "Save"
+            }
+            Text(text = buttonLabel)
         }
 
         TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {

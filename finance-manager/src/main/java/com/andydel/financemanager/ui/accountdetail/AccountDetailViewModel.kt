@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.andydel.financemanager.data.repository.FinanceRepository
+import com.andydel.financemanager.domain.model.AccountType
 import com.andydel.financemanager.domain.model.TransactionType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class AccountDetailViewModel(
     private val accountId: Long,
@@ -29,21 +31,20 @@ class AccountDetailViewModel(
                 accountMissing = true
             )
 
+        val accountType: AccountType = account.type
         var runningBalance = account.initialBalance
         val computed = transactions
             .sortedBy { it.timestamp }
             .map { transaction ->
-                runningBalance += if (transaction.type == TransactionType.INCOME) {
-                    transaction.amount
-                } else {
-                    -transaction.amount
-                }
+                val isIncome = transaction.type == TransactionType.INCOME
+                val change = accountType.balanceImpact(isIncome, transaction.amount)
+                runningBalance += change
                 AccountTransactionItem(
                     id = transaction.id,
                     timestamp = transaction.timestamp,
                     description = transaction.description,
-                    amount = transaction.amount,
-                    isIncome = transaction.type == TransactionType.INCOME,
+                    amountChange = change,
+                    isIncome = isIncome,
                     runningBalance = runningBalance
                 )
             }
@@ -59,7 +60,8 @@ class AccountDetailViewModel(
             currencySymbol = account.currency.symbol,
             currentBalance = account.currentBalance,
             searchQuery = query,
-            transactions = filtered
+            transactions = filtered,
+            accountType = accountType
         )
     }
         .stateIn(
@@ -74,6 +76,12 @@ class AccountDetailViewModel(
 
     fun clearSearch() {
         searchQuery.value = ""
+    }
+
+    fun deleteTransaction(transactionId: Long) {
+        viewModelScope.launch {
+            repository.deleteTransaction(transactionId)
+        }
     }
 
     companion object {

@@ -18,11 +18,14 @@ data class AddTransactionUiState(
     val transactionType: TransactionType = TransactionType.EXPENSE,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val saved: Boolean = false
+    val saved: Boolean = false,
+    val editingTransactionId: Long? = null
 ) {
     val canSave: Boolean
         get() = amount.toDoubleOrNull()?.let { it > 0.0 } == true &&
             selectedAccountId != null &&
             selectedCategoryId != null &&
             description.isNotBlank()
+
+    val isEditing: Boolean get() = editingTransactionId != null
 }
