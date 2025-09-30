@@ -163,6 +163,35 @@ class FinanceRepository(
         return transactionDao.insert(entity)
     }
 
+    suspend fun updateTransaction(
+        transactionId: Long,
+        accountId: Long,
+        categoryId: Long,
+        description: String,
+        amount: Double,
+        type: TransactionType,
+        timestamp: Instant
+    ) {
+        val entity = TransactionEntity(
+            id = transactionId,
+            amount = amount,
+            date = timestamp,
+            description = description,
+            categoryId = categoryId,
+            accountId = accountId,
+            isIncome = type == TransactionType.INCOME
+        )
+        transactionDao.insert(entity)
+    }
+
+    suspend fun getTransaction(transactionId: Long): FinanceTransaction? {
+        return transactionDao.getById(transactionId)?.toDomain()
+    }
+
+    suspend fun deleteTransaction(transactionId: Long) {
+        transactionDao.deleteById(transactionId)
+    }
+
     suspend fun upsertUser(name: String, currencyId: Long) {
         val existing = userDao.observeUser().first()
         if (existing == null) {

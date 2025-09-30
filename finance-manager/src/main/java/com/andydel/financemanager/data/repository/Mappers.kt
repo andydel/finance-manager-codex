@@ -38,13 +38,14 @@ fun AccountEntity.toDomain(
     currency: Currency,
     transactions: List<TransactionEntity>
 ): Account {
+    val accountType = AccountType.fromRaw(type)
     val netChange = transactions.sumOf { entity ->
-        if (entity.isIncome) entity.amount else -entity.amount
+        accountType.balanceImpact(entity.isIncome, entity.amount)
     }
     return Account(
         id = id,
         name = name,
-        type = AccountType.fromRaw(type),
+        type = accountType,
         currency = currency,
         initialBalance = initialBalance,
         currentBalance = initialBalance + netChange,

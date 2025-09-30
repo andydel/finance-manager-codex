@@ -39,6 +39,7 @@ fun FinanceManagerApp(repository: FinanceRepository) {
     val destinationRoute = backStackEntry?.destination?.route
     val currentRoute = destinationRoute?.substringBefore("?") ?: FinanceDestination.Home.route
     val addAccountArgument = backStackEntry?.arguments?.getLong(FinanceDestination.ACCOUNT_FORM_ACCOUNT_ID_KEY)?.takeIf { it > 0 }
+    val editTransactionId = backStackEntry?.arguments?.getLong(FinanceDestination.TRANSACTION_ID_KEY)?.takeIf { it > 0 }
     var isManagingAccounts by rememberSaveable { mutableStateOf(false) }
     var manageDoneAction by remember { mutableStateOf<() -> Unit>({}) }
     var manageCancelAction by remember { mutableStateOf<() -> Unit>({}) }
@@ -58,7 +59,7 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     FinanceDestination.Home.route -> if (isManagingAccounts) "Manage Accounts" else "Finance Manager"
                     FinanceDestination.AddAccount.route.substringBefore("?") ->
                         if (addAccountArgument != null) "Edit Account" else "Add Account"
-                    "addTransaction" -> "Add Transaction"
+                    "addTransaction" -> if (editTransactionId != null) "Edit Transaction" else "Add Transaction"
                     FinanceDestination.Summary.route -> "Summary"
                     FinanceDestination.Settings.route -> "Settings"
                     FinanceDestination.AccountDetail.route -> "Account Details"
@@ -151,15 +152,26 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     navArgument(FinanceDestination.TRANSACTION_ACCOUNT_ID_KEY) {
                         type = NavType.LongType
                         defaultValue = -1L
+                    },
+                    navArgument(FinanceDestination.TRANSACTION_ID_KEY) {
+                        type = NavType.LongType
+                        defaultValue = -1L
                     }
                 )
             ) { entry ->
                 val viewModel: com.andydel.financemanager.ui.addtransaction.AddTransactionViewModel = viewModel(factory = factory)
                 val state by viewModel.uiState.collectAsState()
                 val passedAccountId = entry.arguments?.getLong(FinanceDestination.TRANSACTION_ACCOUNT_ID_KEY)?.takeIf { it != -1L }
+                val editingTransactionId = entry.arguments?.getLong(FinanceDestination.TRANSACTION_ID_KEY)?.takeIf { it != -1L }
 
                 LaunchedEffect(passedAccountId) {
                     viewModel.setDefaultAccount(passedAccountId)
+                }
+
+                LaunchedEffect(editingTransactionId) {
+                    if (editingTransactionId != null) {
+                        viewModel.startEditing(editingTransactionId)
+                    }
                 }
 
                 AddTransactionScreen(
@@ -201,7 +213,16 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                 AccountDetailScreen(
                     state = state,
                     onSearchQueryChange = viewModel::onSearchQueryChange,
-                    onClearSearch = viewModel::clearSearch
+                    onClearSearch = viewModel::clearSearch,
+                    onTransactionClick = { transactionId ->
+                        navController.navigate(
+                            FinanceDestination.addTransactionRoute(
+                                accountId = accountId,
+                                transactionId = transactionId
+                            )
+                        )
+                    },
+                    onDeleteTransaction = viewModel::deleteTransaction
                 )
             }
             composable(FinanceDestination.Summary.route) {

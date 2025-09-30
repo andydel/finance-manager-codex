@@ -15,9 +15,15 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions")
     fun observeAll(): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE id = :transactionId LIMIT 1")
+    suspend fun getById(transactionId: Long): TransactionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: TransactionEntity): Long
 
     @Query("DELETE FROM transactions WHERE account = :accountId")
     suspend fun deleteForAccount(accountId: Long)
+
+    @Query("DELETE FROM transactions WHERE id = :transactionId")
+    suspend fun deleteById(transactionId: Long)
 }
