@@ -48,6 +48,12 @@ Unit tests can be run with:
 
 (Instrumented tests are not yet implemented.)
 
+## Run Generator
+
+  - Bring it up with the testing profile so only that container starts: docker compose --profile testing up -d payroll-data-generator.
+  - Follow its log stream to confirm messages are flowing: docker compose logs -f payroll-data-generator.
+  - When finished, stop it with docker compose --profile testing stop payroll-data-generator (add rm to drop the container if you want a clean rerun).
+
 ## License
 
 This project is available under the MIT license.
