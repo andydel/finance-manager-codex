@@ -28,4 +28,22 @@ class AccountTypeTest {
         val change = AccountType.DEBT.balanceImpact(isIncome = false, amount = 60.25)
         assertEquals(60.25, change, 0.0)
     }
+
+    @Test
+    fun `fromRaw matches display name`() {
+        val type = AccountType.fromRaw("Savings & Investments")
+        assertEquals(AccountType.SAVINGS, type)
+    }
+
+    @Test
+    fun `fromRaw handles noisy alias`() {
+        val type = AccountType.fromRaw("  Checking  ")
+        assertEquals(AccountType.CURRENT, type)
+    }
+
+    @Test
+    fun `fromRaw defaults to current when unknown`() {
+        val type = AccountType.fromRaw("mystery")
+        assertEquals(AccountType.CURRENT, type)
+    }
 }

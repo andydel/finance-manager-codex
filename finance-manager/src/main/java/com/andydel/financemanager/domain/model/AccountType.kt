@@ -11,8 +11,27 @@ enum class AccountType(val displayName: String) {
     }
 
     companion object {
-        fun fromRaw(raw: String): AccountType = values().firstOrNull {
-            it.name.equals(raw, ignoreCase = true)
-        } ?: CURRENT
+        private val lookup: Map<String, AccountType> = buildMap {
+            values().forEach { type ->
+                normalise(type.name)?.let { put(it, type) }
+                normalise(type.displayName)?.let { put(it, type) }
+            }
+            // Provide a couple of common aliases that appear in older exports.
+            putIfAbsent("checking", CURRENT)
+            putIfAbsent("savingsandinvestment", SAVINGS)
+            putIfAbsent("liability", DEBT)
+        }
+
+        fun fromRaw(raw: String): AccountType {
+            val normalised = normalise(raw) ?: return CURRENT
+            return lookup[normalised] ?: CURRENT
+        }
+
+        private fun normalise(value: String): String? {
+            val cleaned = value.trim()
+                .lowercase()
+                .filter { it.isLetterOrDigit() }
+            return cleaned.ifEmpty { null }
+        }
     }
 }
