@@ -16,7 +16,8 @@ import com.andydel.financemanager.domain.model.UserProfile
 fun CurrencyEntity.toDomain(): Currency = Currency(
     id = id,
     name = name,
-    symbol = symbol
+    symbol = symbol,
+    code = code
 )
 
 fun CategoryEntity.toDomain(): Category = Category(

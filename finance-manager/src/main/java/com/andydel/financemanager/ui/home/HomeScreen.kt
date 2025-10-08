@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.andydel.financemanager.domain.model.Account
 import com.andydel.financemanager.domain.model.AccountType
+import com.andydel.financemanager.domain.model.Currency
 import com.andydel.financemanager.ui.home.AccountManagementChange
 
 private data class TabDefinition(val type: AccountType, val title: String)
@@ -210,6 +211,8 @@ fun HomeScreen(
                         }
                         AccountManageList(
                             accounts = accountsForTab,
+                            baseCurrency = state.baseCurrency,
+                            baseCurrencyAmounts = state.baseCurrencyAmounts,
                             modifier = Modifier.fillMaxSize(),
                             onMove = onMove,
                             onDelete = { accountPendingDelete = it }
@@ -217,6 +220,8 @@ fun HomeScreen(
                     } else {
                         AccountDisplayList(
                             accounts = accountsForTab,
+                            baseCurrency = state.baseCurrency,
+                            baseCurrencyAmounts = state.baseCurrencyAmounts,
                             modifier = Modifier.fillMaxSize(),
                             onAccountOpen = onOpenAccount,
                             onAccountEdit = onEditAccount
@@ -273,6 +278,8 @@ fun HomeScreen(
 @Composable
 private fun AccountDisplayList(
     accounts: List<Account>,
+    baseCurrency: Currency?,
+    baseCurrencyAmounts: Map<Long, Double>,
     modifier: Modifier = Modifier,
     onAccountOpen: (Long) -> Unit,
     onAccountEdit: (Long) -> Unit
@@ -283,8 +290,11 @@ private fun AccountDisplayList(
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
     ) {
         itemsIndexed(accounts, key = { _, account -> account.id }) { _, account ->
+            val baseAmount = baseCurrencyAmounts[account.id]
             AccountDisplayCard(
                 account = account,
+                baseCurrency = baseCurrency,
+                baseCurrencyAmount = baseAmount,
                 onOpen = { onAccountOpen(account.id) },
                 onEdit = { onAccountEdit(account.id) }
             )
@@ -295,6 +305,8 @@ private fun AccountDisplayList(
 @Composable
 private fun AccountManageList(
     accounts: List<Account>,
+    baseCurrency: Currency?,
+    baseCurrencyAmounts: Map<Long, Double>,
     modifier: Modifier = Modifier,
     onMove: (Int, Int) -> Unit,
     onDelete: (Account) -> Unit
@@ -305,10 +317,13 @@ private fun AccountManageList(
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
     ) {
         itemsIndexed(accounts, key = { _, account -> account.id }) { index, account ->
+            val baseAmount = baseCurrencyAmounts[account.id]
             val canMoveUp = index > 0
             val canMoveDown = index < accounts.lastIndex
             AccountManageRow(
                 account = account,
+                baseCurrency = baseCurrency,
+                baseCurrencyAmount = baseAmount,
                 canMoveUp = canMoveUp,
                 canMoveDown = canMoveDown,
                 onMoveUp = { onMove(index, index - 1) },
@@ -323,6 +338,8 @@ private fun AccountManageList(
 @OptIn(ExperimentalFoundationApi::class)
 private fun AccountDisplayCard(
     account: Account,
+    baseCurrency: Currency?,
+    baseCurrencyAmount: Double?,
     onOpen: () -> Unit,
     onEdit: () -> Unit
 ) {
@@ -338,6 +355,8 @@ private fun AccountDisplayCard(
     ) {
         AccountCardContent(
             account = account,
+            baseCurrency = baseCurrency,
+            baseCurrencyAmount = baseCurrencyAmount,
             modifier = Modifier.padding(16.dp)
         )
     }
@@ -346,6 +365,8 @@ private fun AccountDisplayCard(
 @Composable
 private fun AccountManageRow(
     account: Account,
+    baseCurrency: Currency?,
+    baseCurrencyAmount: Double?,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
@@ -358,7 +379,11 @@ private fun AccountManageRow(
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            AccountCardContent(account = account)
+            AccountCardContent(
+                account = account,
+                baseCurrency = baseCurrency,
+                baseCurrencyAmount = baseCurrencyAmount
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -383,6 +408,8 @@ private fun AccountManageRow(
 @Composable
 private fun AccountCardContent(
     account: Account,
+    baseCurrency: Currency?,
+    baseCurrencyAmount: Double?,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -392,6 +419,14 @@ private fun AccountCardContent(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
         )
+        val base = baseCurrency
+        if (base != null && baseCurrencyAmount != null && base.id != account.currency.id) {
+            Text(
+                text = "(${base.symbol}${"%,.2f".format(baseCurrencyAmount)} ${base.code})",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
