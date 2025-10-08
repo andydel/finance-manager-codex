@@ -13,12 +13,15 @@ class HomeViewModel(
     private val repository: FinanceRepository
 ) : ViewModel() {
 
-    val uiState = repository.observeAccounts()
-        .map { accounts ->
+    val uiState = repository.observeAccountsOverview()
+        .map { overview ->
+            val accounts = overview.accounts
             HomeUiState(
                 currentAccounts = accounts.filter { it.type == AccountType.CURRENT }.sortedBy { it.sortOrder },
                 savingsAccounts = accounts.filter { it.type == AccountType.SAVINGS }.sortedBy { it.sortOrder },
                 debtAccounts = accounts.filter { it.type == AccountType.DEBT }.sortedBy { it.sortOrder },
+                baseCurrency = overview.baseCurrency,
+                baseCurrencyAmounts = overview.baseCurrencyAmounts,
                 isLoading = false
             )
         }

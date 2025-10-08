@@ -10,6 +10,8 @@ import com.andydel.financemanager.data.local.entities.CategoryEntity
 import com.andydel.financemanager.data.local.entities.CurrencyEntity
 import com.andydel.financemanager.data.local.entities.TransactionEntity
 import com.andydel.financemanager.data.local.entities.UserEntity
+import com.andydel.financemanager.data.local.models.AccountWithTransactions
+import com.andydel.financemanager.data.remote.ExchangeRateService
 import com.andydel.financemanager.domain.model.Account
 import com.andydel.financemanager.domain.model.AccountType
 import com.andydel.financemanager.domain.model.Category
@@ -20,8 +22,8 @@ import com.andydel.financemanager.domain.model.TransactionType
 import com.andydel.financemanager.domain.model.UserProfile
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 class FinanceRepository(
@@ -29,21 +31,33 @@ class FinanceRepository(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val currencyDao: CurrencyDao,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val exchangeRateService: ExchangeRateService
 ) {
 
-    fun observeAccounts(): Flow<List<Account>> = combine(
-        accountDao.observeAccounts(),
-        currencyDao.observeCurrencies()
-    ) { accounts, currencies ->
-        val currencyMap = currencies.associateBy(CurrencyEntity::id)
-        accounts.mapNotNull { accountWithTransactions ->
-            val currencyEntity = currencyMap[accountWithTransactions.account.currencyId] ?: return@mapNotNull null
-            accountWithTransactions.account.toDomain(
-                currency = currencyEntity.toDomain(),
-                transactions = accountWithTransactions.transactions
-            )
-        }.sortedBy(Account::sortOrder)
+    fun observeAccounts(): Flow<List<Account>> = accountsWithCurrencies()
+        .map { (accounts, currencies) ->
+            accounts.toDomainAccounts(currencies)
+        }
+
+    fun observeAccountsOverview(): Flow<AccountsOverview> = combine(
+        accountsWithCurrencies(),
+        userDao.observeUser()
+    ) { (accounts, currencies), user ->
+        val domainAccounts = accounts.toDomainAccounts(currencies)
+        val baseCurrency = user?.currencyId
+            ?.let(currencies::get)
+            ?.toDomain()
+        val baseCurrencyAmounts = if (baseCurrency != null) {
+            computeBaseAmounts(domainAccounts, baseCurrency)
+        } else {
+            domainAccounts.associate { it.id to it.currentBalance }
+        }
+        AccountsOverview(
+            accounts = domainAccounts,
+            baseCurrency = baseCurrency,
+            baseCurrencyAmounts = baseCurrencyAmounts
+        )
     }
 
     fun observeAccounts(type: AccountType): Flow<List<Account>> = observeAccounts().map { list ->
@@ -55,16 +69,22 @@ class FinanceRepository(
             entities.map(TransactionEntity::toDomain)
         }
 
-    fun observeSummary(): Flow<SummarySnapshot> = observeAccounts().map { accounts ->
-        val current = accounts.filter { it.type == AccountType.CURRENT }.sumOf(Account::currentBalance)
-        val savings = accounts.filter { it.type == AccountType.SAVINGS }.sumOf(Account::currentBalance)
-        val debt = accounts.filter { it.type == AccountType.DEBT }.sumOf(Account::currentBalance)
+    fun observeSummary(): Flow<SummarySnapshot> = observeAccountsOverview().map { overview ->
+        val accounts = overview.accounts
+        val amounts = overview.baseCurrencyAmounts
+        fun totalFor(type: AccountType) = accounts
+            .filter { it.type == type }
+            .sumOf { account -> amounts[account.id] ?: account.currentBalance }
+        val current = totalFor(AccountType.CURRENT)
+        val savings = totalFor(AccountType.SAVINGS)
+        val debt = totalFor(AccountType.DEBT)
         SummarySnapshot(
             currentBalance = current,
             savingsBalance = savings,
             debtBalance = debt,
             totalAssets = current + savings,
-            totalDebt = debt
+            totalDebt = debt,
+            baseCurrency = overview.baseCurrency
         )
     }
 
@@ -211,10 +231,10 @@ class FinanceRepository(
         val existing = currencyDao.observeCurrencies().first()
         if (existing.isNotEmpty()) return
         val defaults = listOf(
-            CurrencyEntity(name = "US Dollar", symbol = "\$"),
-            CurrencyEntity(name = "Euro", symbol = "€"),
-            CurrencyEntity(name = "British Pound", symbol = "£"),
-            CurrencyEntity(name = "Japanese Yen", symbol = "¥")
+            CurrencyEntity(name = "US Dollar", symbol = "\$", code = "USD"),
+            CurrencyEntity(name = "Euro", symbol = "€", code = "EUR"),
+            CurrencyEntity(name = "British Pound", symbol = "£", code = "GBP"),
+            CurrencyEntity(name = "Japanese Yen", symbol = "¥", code = "JPY")
         )
         defaults.forEach { currencyDao.insert(it) }
     }
@@ -237,5 +257,59 @@ class FinanceRepository(
         if (existing != null) return
         val defaultCurrency = currencyDao.observeCurrencies().first().firstOrNull()?.id ?: return
         userDao.insert(UserEntity(name = "You", currencyId = defaultCurrency))
+    }
+    private fun accountsWithCurrencies(): Flow<Pair<List<AccountWithTransactions>, Map<Long, CurrencyEntity>>> =
+        combine(
+            accountDao.observeAccounts(),
+            currencyDao.observeCurrencies()
+        ) { accounts, currencies ->
+            accounts to currencies.associateBy(CurrencyEntity::id)
+        }
+
+    private suspend fun computeBaseAmounts(
+        accounts: List<Account>,
+        baseCurrency: Currency
+    ): Map<Long, Double> {
+        if (accounts.isEmpty()) return emptyMap()
+        val foreignAccounts = accounts.filter { it.currency.id != baseCurrency.id }
+        if (foreignAccounts.isEmpty()) {
+            return accounts.associate { it.id to it.currentBalance }
+        }
+        val targetSymbols = foreignAccounts.map { it.currency.code.uppercase() }.toSet()
+        val rates = exchangeRateService.latestRates(baseCurrency.code.uppercase(), targetSymbols)
+        return convertAccountBalancesToBase(accounts, baseCurrency, rates)
+    }
+}
+
+data class AccountsOverview(
+    val accounts: List<Account>,
+    val baseCurrency: Currency?,
+    val baseCurrencyAmounts: Map<Long, Double>
+)
+
+private fun List<AccountWithTransactions>.toDomainAccounts(
+    currencies: Map<Long, CurrencyEntity>
+): List<Account> = mapNotNull { accountWithTransactions ->
+    val currencyEntity = currencies[accountWithTransactions.account.currencyId] ?: return@mapNotNull null
+    accountWithTransactions.account.toDomain(
+        currency = currencyEntity.toDomain(),
+        transactions = accountWithTransactions.transactions
+    )
+}.sortedBy(Account::sortOrder)
+
+internal fun convertAccountBalancesToBase(
+    accounts: List<Account>,
+    baseCurrency: Currency,
+    rates: Map<String, Double>
+): Map<Long, Double> {
+    if (accounts.isEmpty()) return emptyMap()
+    return accounts.associate { account ->
+        val amount = if (account.currency.id == baseCurrency.id) {
+            account.currentBalance
+        } else {
+            val rate = rates[account.currency.code.uppercase()]
+            if (rate != null && rate > 0.0) account.currentBalance / rate else account.currentBalance
+        }
+        account.id to amount
     }
 }
