@@ -9,5 +9,6 @@ data class HomeUiState(
     val debtAccounts: List<Account> = emptyList(),
     val baseCurrency: Currency? = null,
     val baseCurrencyAmounts: Map<Long, Double> = emptyMap(),
+    val conversionsAvailable: Boolean = false,
     val isLoading: Boolean = true
 )

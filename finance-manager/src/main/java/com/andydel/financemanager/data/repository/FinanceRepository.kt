@@ -48,15 +48,27 @@ class FinanceRepository(
         val baseCurrency = user?.currencyId
             ?.let(currencies::get)
             ?.toDomain()
-        val baseCurrencyAmounts = if (baseCurrency != null) {
-            computeBaseAmounts(domainAccounts, baseCurrency)
+        val apiKey = user?.exchangeRateApiKey?.trim().takeIf { !it.isNullOrEmpty() }
+
+        val conversion = if (baseCurrency != null && apiKey != null) {
+            computeBaseAmounts(domainAccounts, baseCurrency, apiKey)
         } else {
-            domainAccounts.associate { it.id to it.currentBalance }
+            val amounts = if (baseCurrency != null) {
+                domainAccounts
+                    .filter { it.currency.id == baseCurrency.id }
+                    .associate { it.id to it.currentBalance }
+            } else {
+                emptyMap()
+            }
+            val onlyBaseCurrency = baseCurrency != null && domainAccounts.all { it.currency.id == baseCurrency.id }
+            ConversionResult(amounts = amounts, allAvailable = onlyBaseCurrency)
         }
+
         AccountsOverview(
             accounts = domainAccounts,
             baseCurrency = baseCurrency,
-            baseCurrencyAmounts = baseCurrencyAmounts
+            baseCurrencyAmounts = conversion.amounts,
+            conversionsAvailable = conversion.allAvailable
         )
     }
 
@@ -74,7 +86,7 @@ class FinanceRepository(
         val amounts = overview.baseCurrencyAmounts
         fun totalFor(type: AccountType) = accounts
             .filter { it.type == type }
-            .sumOf { account -> amounts[account.id] ?: account.currentBalance }
+            .sumOf { account -> amounts[account.id] ?: 0.0 }
         val current = totalFor(AccountType.CURRENT)
         val savings = totalFor(AccountType.SAVINGS)
         val debt = totalFor(AccountType.DEBT)
@@ -84,7 +96,8 @@ class FinanceRepository(
             debtBalance = debt,
             totalAssets = current + savings,
             totalDebt = debt,
-            baseCurrency = overview.baseCurrency
+            baseCurrency = overview.baseCurrency,
+            hasConversionRates = overview.conversionsAvailable
         )
     }
 
@@ -212,12 +225,25 @@ class FinanceRepository(
         transactionDao.deleteById(transactionId)
     }
 
-    suspend fun upsertUser(name: String, currencyId: Long) {
+    suspend fun upsertUser(name: String, currencyId: Long, exchangeRateApiKey: String?) {
+        val cleanedKey = exchangeRateApiKey?.trim().takeIf { !it.isNullOrEmpty() }
         val existing = userDao.observeUser().first()
         if (existing == null) {
-            userDao.insert(UserEntity(name = name, currencyId = currencyId))
+            userDao.insert(
+                UserEntity(
+                    name = name,
+                    currencyId = currencyId,
+                    exchangeRateApiKey = cleanedKey
+                )
+            )
         } else {
-            userDao.update(existing.copy(name = name, currencyId = currencyId))
+            userDao.update(
+                existing.copy(
+                    name = name,
+                    currencyId = currencyId,
+                    exchangeRateApiKey = cleanedKey
+                )
+            )
         }
     }
 
@@ -268,15 +294,27 @@ class FinanceRepository(
 
     private suspend fun computeBaseAmounts(
         accounts: List<Account>,
-        baseCurrency: Currency
-    ): Map<Long, Double> {
-        if (accounts.isEmpty()) return emptyMap()
+        baseCurrency: Currency,
+        apiKey: String
+    ): ConversionResult {
+        if (accounts.isEmpty()) return ConversionResult(emptyMap(), true)
         val foreignAccounts = accounts.filter { it.currency.id != baseCurrency.id }
         if (foreignAccounts.isEmpty()) {
-            return accounts.associate { it.id to it.currentBalance }
+            val amounts = accounts.associate { it.id to it.currentBalance }
+            return ConversionResult(amounts, true)
         }
         val targetSymbols = foreignAccounts.map { it.currency.code.uppercase() }.toSet()
-        val rates = exchangeRateService.latestRates(baseCurrency.code.uppercase(), targetSymbols)
+        val rates = exchangeRateService.latestRates(
+            base = baseCurrency.code.uppercase(),
+            symbols = targetSymbols,
+            apiKey = apiKey
+        )
+        if (rates.isEmpty()) {
+            val baseOnly = accounts
+                .filter { it.currency.id == baseCurrency.id }
+                .associate { it.id to it.currentBalance }
+            return ConversionResult(baseOnly, false)
+        }
         return convertAccountBalancesToBase(accounts, baseCurrency, rates)
     }
 }
@@ -284,7 +322,8 @@ class FinanceRepository(
 data class AccountsOverview(
     val accounts: List<Account>,
     val baseCurrency: Currency?,
-    val baseCurrencyAmounts: Map<Long, Double>
+    val baseCurrencyAmounts: Map<Long, Double>,
+    val conversionsAvailable: Boolean
 )
 
 private fun List<AccountWithTransactions>.toDomainAccounts(
@@ -301,15 +340,26 @@ internal fun convertAccountBalancesToBase(
     accounts: List<Account>,
     baseCurrency: Currency,
     rates: Map<String, Double>
-): Map<Long, Double> {
-    if (accounts.isEmpty()) return emptyMap()
-    return accounts.associate { account ->
-        val amount = if (account.currency.id == baseCurrency.id) {
-            account.currentBalance
+): ConversionResult {
+    if (accounts.isEmpty()) return ConversionResult(emptyMap(), true)
+    val amounts = mutableMapOf<Long, Double>()
+    var allAvailable = true
+    accounts.forEach { account ->
+        if (account.currency.id == baseCurrency.id) {
+            amounts[account.id] = account.currentBalance
         } else {
             val rate = rates[account.currency.code.uppercase()]
-            if (rate != null && rate > 0.0) account.currentBalance / rate else account.currentBalance
+            if (rate != null && rate > 0.0) {
+                amounts[account.id] = account.currentBalance / rate
+            } else {
+                allAvailable = false
+            }
         }
-        account.id to amount
     }
+    return ConversionResult(amounts, allAvailable)
 }
+
+data class ConversionResult(
+    val amounts: Map<Long, Double>,
+    val allAvailable: Boolean
+)

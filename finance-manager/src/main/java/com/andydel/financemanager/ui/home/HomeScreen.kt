@@ -213,6 +213,7 @@ fun HomeScreen(
                             accounts = accountsForTab,
                             baseCurrency = state.baseCurrency,
                             baseCurrencyAmounts = state.baseCurrencyAmounts,
+                            conversionsAvailable = state.conversionsAvailable,
                             modifier = Modifier.fillMaxSize(),
                             onMove = onMove,
                             onDelete = { accountPendingDelete = it }
@@ -222,6 +223,7 @@ fun HomeScreen(
                             accounts = accountsForTab,
                             baseCurrency = state.baseCurrency,
                             baseCurrencyAmounts = state.baseCurrencyAmounts,
+                            conversionsAvailable = state.conversionsAvailable,
                             modifier = Modifier.fillMaxSize(),
                             onAccountOpen = onOpenAccount,
                             onAccountEdit = onEditAccount
@@ -280,6 +282,7 @@ private fun AccountDisplayList(
     accounts: List<Account>,
     baseCurrency: Currency?,
     baseCurrencyAmounts: Map<Long, Double>,
+    conversionsAvailable: Boolean,
     modifier: Modifier = Modifier,
     onAccountOpen: (Long) -> Unit,
     onAccountEdit: (Long) -> Unit
@@ -295,6 +298,7 @@ private fun AccountDisplayList(
                 account = account,
                 baseCurrency = baseCurrency,
                 baseCurrencyAmount = baseAmount,
+                conversionsAvailable = conversionsAvailable,
                 onOpen = { onAccountOpen(account.id) },
                 onEdit = { onAccountEdit(account.id) }
             )
@@ -307,6 +311,7 @@ private fun AccountManageList(
     accounts: List<Account>,
     baseCurrency: Currency?,
     baseCurrencyAmounts: Map<Long, Double>,
+    conversionsAvailable: Boolean,
     modifier: Modifier = Modifier,
     onMove: (Int, Int) -> Unit,
     onDelete: (Account) -> Unit
@@ -324,6 +329,7 @@ private fun AccountManageList(
                 account = account,
                 baseCurrency = baseCurrency,
                 baseCurrencyAmount = baseAmount,
+                conversionsAvailable = conversionsAvailable,
                 canMoveUp = canMoveUp,
                 canMoveDown = canMoveDown,
                 onMoveUp = { onMove(index, index - 1) },
@@ -340,6 +346,7 @@ private fun AccountDisplayCard(
     account: Account,
     baseCurrency: Currency?,
     baseCurrencyAmount: Double?,
+    conversionsAvailable: Boolean,
     onOpen: () -> Unit,
     onEdit: () -> Unit
 ) {
@@ -357,6 +364,7 @@ private fun AccountDisplayCard(
             account = account,
             baseCurrency = baseCurrency,
             baseCurrencyAmount = baseCurrencyAmount,
+            conversionsAvailable = conversionsAvailable,
             modifier = Modifier.padding(16.dp)
         )
     }
@@ -367,6 +375,7 @@ private fun AccountManageRow(
     account: Account,
     baseCurrency: Currency?,
     baseCurrencyAmount: Double?,
+    conversionsAvailable: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
@@ -382,7 +391,8 @@ private fun AccountManageRow(
             AccountCardContent(
                 account = account,
                 baseCurrency = baseCurrency,
-                baseCurrencyAmount = baseCurrencyAmount
+                baseCurrencyAmount = baseCurrencyAmount,
+                conversionsAvailable = conversionsAvailable
             )
             Row(
                 modifier = Modifier
@@ -410,6 +420,7 @@ private fun AccountCardContent(
     account: Account,
     baseCurrency: Currency?,
     baseCurrencyAmount: Double?,
+    conversionsAvailable: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -420,9 +431,14 @@ private fun AccountCardContent(
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
         )
         val base = baseCurrency
-        if (base != null && baseCurrencyAmount != null && base.id != account.currency.id) {
+        if (base != null && base.id != account.currency.id) {
+            val conversionText = if (conversionsAvailable && baseCurrencyAmount != null) {
+                "${base.symbol}${"%,.2f".format(baseCurrencyAmount)} ${base.code}"
+            } else {
+                "n/a ${base.code}"
+            }
             Text(
-                text = "(${base.symbol}${"%,.2f".format(baseCurrencyAmount)} ${base.code})",
+                text = "($conversionText)",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -10,21 +10,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-class ExchangeRateService(
-    private val apiKeyProvider: ExchangeRateApiKeyProvider
-) {
+class ExchangeRateService {
     private val cacheMutex = Mutex()
     private val cache = mutableMapOf<CacheKey, CachedRates>()
     private val cacheTtlMillis = TimeUnit.MINUTES.toMillis(30)
 
-    suspend fun latestRates(base: String, symbols: Set<String>): Map<String, Double> {
+    suspend fun latestRates(base: String, symbols: Set<String>, apiKey: String): Map<String, Double> {
+        val trimmedKey = apiKey.trim()
+        if (trimmedKey.isEmpty()) return emptyMap()
+
         val normalizedBase = base.uppercase()
         val normalizedSymbols = symbols.map(String::uppercase).filterNot { it == normalizedBase }.toSet()
         if (normalizedSymbols.isEmpty()) {
             return emptyMap()
         }
 
-        val key = CacheKey(normalizedBase, normalizedSymbols.toList().sorted())
+        val key = CacheKey(normalizedBase, normalizedSymbols.toList().sorted(), trimmedKey)
         val now = System.currentTimeMillis()
 
         cacheMutex.withLock {
@@ -34,7 +35,7 @@ class ExchangeRateService(
             }
         }
 
-        val fetched = fetchRates(normalizedBase, normalizedSymbols)
+        val fetched = fetchRates(normalizedBase, normalizedSymbols, trimmedKey)
         if (fetched.isEmpty()) {
             return emptyMap()
         }
@@ -45,10 +46,9 @@ class ExchangeRateService(
         return fetched
     }
 
-    private suspend fun fetchRates(base: String, symbols: Set<String>): Map<String, Double> {
-        val apiKey = apiKeyProvider.getApiKey() ?: return emptyMap()
-        val symbolsParam = symbols.joinToString(",")
-        val url = "https://api.exchangerate.host/latest?base=$base&symbols=$symbolsParam&access_key=$apiKey"
+    private suspend fun fetchRates(base: String, symbols: Set<String>, apiKey: String): Map<String, Double> {
+        val currenciesParam = (symbols + base).joinToString(",")
+        val url = "https://api.currencylayer.com/live?access_key=$apiKey&currencies=$currenciesParam"
 
         return withContext(Dispatchers.IO) {
             runCatching {
@@ -65,7 +65,7 @@ class ExchangeRateService(
                         connection.errorStream ?: connection.inputStream
                     }
                     val response = stream.bufferedReader().use { it.readText() }
-                    parseRates(response)
+                    parseRates(response, base)
                 } finally {
                     connection.disconnect()
                 }
@@ -73,25 +73,40 @@ class ExchangeRateService(
         }
     }
 
-    private fun parseRates(response: String): Map<String, Double> {
+    private fun parseRates(response: String, base: String): Map<String, Double> {
         val root = runCatching { JSONObject(response) }.getOrNull() ?: return emptyMap()
         if (!root.optBoolean("success", false)) {
             return emptyMap()
         }
-        val ratesJson = root.optJSONObject("rates") ?: return emptyMap()
-        val iterator = ratesJson.keys()
+        val quotes = root.optJSONObject("quotes") ?: return emptyMap()
+        val source = root.optString("source", "USD").uppercase()
+        val baseCode = base.uppercase()
+
+        val sourceToBase = if (source == baseCode) {
+            1.0
+        } else {
+            quotes.optDouble(source + baseCode, Double.NaN)
+        }
+        if (sourceToBase.isNaN() || sourceToBase <= 0.0) {
+            return emptyMap()
+        }
+
         val result = mutableMapOf<String, Double>()
+        val iterator = quotes.keys()
         while (iterator.hasNext()) {
-            val code = iterator.next().uppercase()
-            val value = ratesJson.optDouble(code, Double.NaN)
-            if (!value.isNaN() && value > 0.0) {
-                result[code] = value
-            }
+            val key = iterator.next()
+            if (!key.startsWith(source)) continue
+            val currencyCode = key.removePrefix(source).uppercase()
+            if (currencyCode == baseCode) continue
+            val rawRate = quotes.optDouble(key, Double.NaN)
+            if (rawRate.isNaN() || rawRate <= 0.0) continue
+            val rate = if (source == baseCode) rawRate else rawRate / sourceToBase
+            result[currencyCode] = rate
         }
         return result
     }
 
-    private data class CacheKey(val base: String, val symbols: List<String>)
+    private data class CacheKey(val base: String, val symbols: List<String>, val apiKey: String)
     private data class CachedRates(val timestamp: Long, val rates: Map<String, Double>)
 
     private companion object {

@@ -8,5 +8,6 @@ import androidx.room.PrimaryKey
 data class UserEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val name: String,
-    @ColumnInfo(name = "currency") val currencyId: Long
+    @ColumnInfo(name = "currency") val currencyId: Long,
+    @ColumnInfo(name = "exchange_rate_api_key") val exchangeRateApiKey: String? = null
 )

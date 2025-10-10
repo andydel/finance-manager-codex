@@ -18,7 +18,8 @@ class ConvertAccountBalancesToBaseTest {
 
         val converted = convertAccountBalancesToBase(accounts, usd, emptyMap())
 
-        assertEquals(120.0, converted.getValue(1L), 0.0001)
+        assertEquals(120.0, converted.amounts.getValue(1L), 0.0001)
+        assertEquals(true, converted.allAvailable)
     }
 
     @Test
@@ -28,7 +29,8 @@ class ConvertAccountBalancesToBaseTest {
 
         val converted = convertAccountBalancesToBase(accounts, usd, rates)
 
-        assertEquals(100.0, converted.getValue(2L), 0.0001)
+        assertEquals(100.0, converted.amounts.getValue(2L), 0.0001)
+        assertEquals(true, converted.allAvailable)
     }
 
     @Test
@@ -38,7 +40,8 @@ class ConvertAccountBalancesToBaseTest {
 
         val converted = convertAccountBalancesToBase(accounts, usd, rates)
 
-        assertEquals(150.0, converted.getValue(3L), 0.0001)
+        assertEquals(false, converted.allAvailable)
+        assertEquals(false, converted.amounts.containsKey(3L))
     }
 
     private fun account(

@@ -22,6 +22,7 @@ class HomeViewModel(
                 debtAccounts = accounts.filter { it.type == AccountType.DEBT }.sortedBy { it.sortOrder },
                 baseCurrency = overview.baseCurrency,
                 baseCurrencyAmounts = overview.baseCurrencyAmounts,
+                conversionsAvailable = overview.conversionsAvailable,
                 isLoading = false
             )
         }

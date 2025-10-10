@@ -59,5 +59,6 @@ fun AccountEntity.toDomain(
 fun UserEntity.toDomain(currency: Currency): UserProfile = UserProfile(
     id = id,
     name = name,
-    baseCurrency = currency
+    baseCurrency = currency,
+    exchangeRateApiKey = exchangeRateApiKey
 )

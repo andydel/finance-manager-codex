@@ -237,6 +237,7 @@ fun FinanceManagerApp(repository: FinanceRepository) {
                     state = state,
                     onNameChanged = viewModel::onNameChanged,
                     onCurrencySelected = viewModel::onCurrencySelected,
+                    onExchangeRateApiKeyChanged = viewModel::onExchangeRateApiKeyChanged,
                     onSave = viewModel::saveSettings
                 )
             }

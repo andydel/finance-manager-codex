@@ -49,29 +49,73 @@ private fun SummaryContent(state: SummaryUiState.Success) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        snapshot.baseCurrency?.let { currency ->
+        if (snapshot.hasConversionRates && snapshot.baseCurrency != null) {
+            val currency = snapshot.baseCurrency
             Text(
                 text = "All values shown in ${currency.name} (${currency.code}).",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        } else {
+            Text(
+                text = "Currency conversions unavailable. Add your API key in Settings to enable converted totals.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
-        SummaryCard(title = "Current accounts", amount = snapshot.currentBalance, baseCurrency = snapshot.baseCurrency)
-        SummaryCard(title = "Savings & Investments", amount = snapshot.savingsBalance, baseCurrency = snapshot.baseCurrency)
-        SummaryCard(title = "Debt", amount = snapshot.debtBalance, baseCurrency = snapshot.baseCurrency)
-        SummaryCard(title = "Total assets", amount = snapshot.totalAssets, baseCurrency = snapshot.baseCurrency)
-        SummaryCard(title = "Total debt", amount = snapshot.totalDebt, baseCurrency = snapshot.baseCurrency)
-        SummaryCard(title = "Net worth", amount = snapshot.netWorth, baseCurrency = snapshot.baseCurrency, emphasise = true)
+        SummaryCard(
+            title = "Current accounts",
+            amount = snapshot.currentBalance,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates
+        )
+        SummaryCard(
+            title = "Savings & Investments",
+            amount = snapshot.savingsBalance,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates
+        )
+        SummaryCard(
+            title = "Debt",
+            amount = snapshot.debtBalance,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates
+        )
+        SummaryCard(
+            title = "Total assets",
+            amount = snapshot.totalAssets,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates
+        )
+        SummaryCard(
+            title = "Total debt",
+            amount = snapshot.totalDebt,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates
+        )
+        SummaryCard(
+            title = "Net worth",
+            amount = snapshot.netWorth,
+            baseCurrency = snapshot.baseCurrency,
+            showAmount = snapshot.hasConversionRates,
+            emphasise = true
+        )
     }
 }
 
 @Composable
-private fun SummaryCard(title: String, amount: Double, baseCurrency: Currency?, emphasise: Boolean = false) {
+private fun SummaryCard(
+    title: String,
+    amount: Double,
+    baseCurrency: Currency?,
+    showAmount: Boolean,
+    emphasise: Boolean = false
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
             Text(
-                text = formatAmount(baseCurrency, amount),
+                text = if (showAmount) formatAmount(baseCurrency, amount) else "n/a",
                 style = if (emphasise) MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 else MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(top = 8.dp)

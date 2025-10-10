@@ -3,7 +3,6 @@ package com.andydel.financemanager
 import android.content.Context
 import androidx.room.Room
 import com.andydel.financemanager.data.local.AppDatabase
-import com.andydel.financemanager.data.remote.ExchangeRateApiKeyProvider
 import com.andydel.financemanager.data.remote.ExchangeRateService
 import com.andydel.financemanager.data.repository.FinanceRepository
 import kotlinx.coroutines.CoroutineScope
@@ -20,9 +19,7 @@ class AppContainer(context: Context) {
         .fallbackToDestructiveMigration()
         .build()
 
-    private val exchangeRateService = ExchangeRateService(
-        apiKeyProvider = ExchangeRateApiKeyProvider(context)
-    )
+    private val exchangeRateService = ExchangeRateService()
 
     val repository: FinanceRepository = FinanceRepository(
         accountDao = database.accountDao(),

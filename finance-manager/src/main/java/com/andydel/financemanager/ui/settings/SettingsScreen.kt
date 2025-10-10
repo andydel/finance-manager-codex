@@ -33,6 +33,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onNameChanged: (String) -> Unit,
     onCurrencySelected: (Long) -> Unit,
+    onExchangeRateApiKeyChanged: (String) -> Unit,
     onSave: () -> Unit
 ) {
     Column(
@@ -55,6 +56,14 @@ fun SettingsScreen(
             currentValue = currencies.firstOrNull { it.id == state.selectedCurrencyId }?.displayName ?: "Select currency",
             options = currencies.map { it.displayName },
             onOptionSelected = { index -> currencies.getOrNull(index)?.let { onCurrencySelected(it.id) } }
+        )
+
+        OutlinedTextField(
+            value = state.exchangeRateApiKey,
+            onValueChange = onExchangeRateApiKeyChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Exchange rate API key") },
+            supportingText = { Text("Leave blank to disable currency conversions") }
         )
 
         state.message?.let { Text(text = it) }

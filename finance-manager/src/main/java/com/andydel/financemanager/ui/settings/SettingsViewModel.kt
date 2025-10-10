@@ -38,6 +38,7 @@ class SettingsViewModel(
                     _uiState.value = _uiState.value.copy(
                         name = profile.name,
                         selectedCurrencyId = profile.baseCurrency.id,
+                        exchangeRateApiKey = profile.exchangeRateApiKey.orEmpty(),
                         isInitialized = true
                     )
                 } else {
@@ -55,6 +56,10 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(selectedCurrencyId = currencyId)
     }
 
+    fun onExchangeRateApiKeyChanged(value: String) {
+        _uiState.value = _uiState.value.copy(exchangeRateApiKey = value)
+    }
+
     fun saveSettings() {
         val state = _uiState.value
         val currencyId = state.selectedCurrencyId ?: return
@@ -63,7 +68,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 _uiState.value = state.copy(isSaving = true, message = null)
-                repository.upsertUser(state.name.trim(), currencyId)
+                repository.upsertUser(state.name.trim(), currencyId, state.exchangeRateApiKey)
                 _uiState.value = _uiState.value.copy(isSaving = false, message = "Settings saved")
             } catch (t: Throwable) {
                 _uiState.value = _uiState.value.copy(
